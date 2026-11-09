@@ -1,0 +1,129 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model galeri {
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  foto_url   String
+  keterangan String?
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model jam_kerja_staf {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  staf_id     String   @db.Uuid
+  hari        Int      @db.SmallInt
+  jam_mulai   DateTime @db.Time(6)
+  jam_selesai DateTime @db.Time(6)
+  staf        staf     @relation(fields: [staf_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([staf_id, hari])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model langganan_notifikasi {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pengguna_id     String   @db.Uuid
+  endpoint        String   @unique
+  kunci_langganan Json
+  pengguna        pengguna @relation(fields: [pengguna_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([pengguna_id], map: "idx_langganan_pengguna")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model layanan {
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nama         String         @unique
+  deskripsi    String?
+  harga        Int
+  durasi_menit Int
+  aktif        Boolean        @default(true)
+  reservasi    reservasi[]
+  staf_layanan staf_layanan[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model pembayaran {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reservasi_id String    @db.Uuid
+  jumlah       Int
+  metode       String
+  status       String    @default("belum_bayar")
+  dibayar_pada DateTime? @db.Timestamptz(6)
+  reservasi    reservasi @relation(fields: [reservasi_id], references: [id], onUpdate: NoAction)
+
+  @@index([reservasi_id], map: "idx_pembayaran_reservasi")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model pengguna {
+  id                   String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nama                 String
+  email                String                 @unique
+  password_hash        String
+  jenis_kelamin        String
+  no_hp                String?
+  jenis_akun           String                 @default("pelanggan")
+  dibuat_pada          DateTime               @default(now()) @db.Timestamptz(6)
+  langganan_notifikasi langganan_notifikasi[]
+  reservasi            reservasi[]
+  staf                 staf?
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This table contains exclusion constraints and requires additional setup for migrations. Visit https://pris.ly/d/exclusion-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model reservasi {
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pelanggan_id String       @db.Uuid
+  staf_id      String       @db.Uuid
+  layanan_id   String       @db.Uuid
+  tanggal      DateTime     @db.Date
+  jam_mulai    DateTime     @db.Time(6)
+  jam_selesai  DateTime     @db.Time(6)
+  status       String       @default("menunggu")
+  total_biaya  Int
+  dibuat_pada  DateTime     @default(now()) @db.Timestamptz(6)
+  pembayaran   pembayaran[]
+  layanan      layanan      @relation(fields: [layanan_id], references: [id], onUpdate: NoAction)
+  pengguna     pengguna     @relation(fields: [pelanggan_id], references: [id], onUpdate: NoAction)
+  staf         staf         @relation(fields: [staf_id], references: [id], onUpdate: NoAction)
+
+  @@index([pelanggan_id], map: "idx_reservasi_pelanggan")
+  @@index([staf_id, tanggal], map: "idx_reservasi_staf_tgl")
+  @@index([status], map: "idx_reservasi_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model staf {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pengguna_id    String           @unique @db.Uuid
+  nama           String
+  foto_url       String?
+  jam_kerja_staf jam_kerja_staf[]
+  reservasi      reservasi[]
+  pengguna       pengguna         @relation(fields: [pengguna_id], references: [id], onUpdate: NoAction)
+  staf_layanan   staf_layanan[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model staf_layanan {
+  staf_id    String  @db.Uuid
+  layanan_id String  @db.Uuid
+  layanan    layanan @relation(fields: [layanan_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  staf       staf    @relation(fields: [staf_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([staf_id, layanan_id])
+}
